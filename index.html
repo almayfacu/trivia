@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz de Cumpleaños 🎉</title>
+  <style>
+    :root {
+      --pastel-pink: #ffd1dc;
+      --pastel-blue: #c2f0fc;
+      --pastel-yellow: #fff8b5;
+      --pastel-green: #d3f8e2;
+      --text-color: #333;
+      --card-bg: rgba(255,255,255,0.9);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      background: #ffc0cb;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    #quiz-container {
+      background: var(--card-bg);
+      border-radius: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 600px;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+    }
+    #main-title { color: #fc90a2; margin-bottom: 10px; }
+    .question { font-size: 1.2em; margin: 20px 0; color: #fc90a2; }
+    .options { list-style: none; padding: 0; }
+    .options li { margin: 10px 0; }
+    .option-btn {
+      width: 100%; padding: 12px;
+      background: var(--pastel-yellow);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1em;
+      color: #ff617c;
+      font-family: 'Comic Sans MS';
+      transition: transform 0.2s;
+    }
+    .option-btn:hover { transform: scale(1.03); }
+    .nav-btn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      font-size: 1em;
+      border: none;
+      border-radius: 10px;
+      background: var(--pastel-green);
+      cursor: pointer;
+      color: #ff617c;
+      font-family: 'Comic Sans MS';
+    }
+    .screen { display: none; flex-direction: column; align-items: center; margin-top: 20px; }
+    .screen img {
+      max-width: 80%;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    #wrong-screen p { color:#fc90a2; font-size: 1.2em; margin-bottom: 10px; }
+    @media (max-width: 400px) {
+      .option-btn { font-size: 0.9em; padding: 10px; }
+      .nav-btn { font-size: 0.9em; padding: 10px 20px; }
+    }
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      opacity: 0.8;
+      animation: fall 3s linear forwards;
+    }
+    @keyframes fall {
+      to { transform: translate(var(--dx), 100vh) rotate(360deg); opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="quiz-container">
+    <h1 id="main-title">Acertá para descubrir otra razón</h1>
+    <div id="question-box" class="screen">
+      <p class="question" id="question-text"></p>
+      <ul class="options" id="options-list"></ul>
+    </div>
+    <div id="wrong-screen" class="screen">
+      <p>Respuesta incorrecta</p>
+      <button class="nav-btn" id="restart-btn">Volver a jugar</button>
+    </div>
+    <div id="final-screen" class="screen">
+      <img src="detalles.png" alt="¡Feliz Cumpleaños! 🎉" />
+      <button class="nav-btn" id="restart-btn-final">Volver a jugar</button>
+    </div>
+  </div>
+
+  <audio id="correct-sound" src="bien.mp3" preload="auto"></audio>
+  <audio id="wrong-sound" src="mal.mp3" preload="auto"></audio>
+  <audio id="win-sound" src="completo.mp3" preload="auto"></audio>
+
+  <script>
+    const questions = [
+      { text: "¿Qué día te juntaste por primera vez con tu novio?", options: ["5 de abril","8 de diciembre","29 de noviembre","12 de diciembre"], answerIndex: 1 },
+      { text: "¿Cuando tu novio te pidió que fueras su novia?", options: ["14 de febrero","1 de mayo","20 de marzo","18 de abril"], answerIndex: 3 },
+      { text: "¿Cómo se llama la mascota de tu novio?", options: ["Bubba","Ferxxo","Pepe","Negra"], answerIndex: 0 },
+      { text: "¿Dónde celebraste tu primer mes con tu novio?", options: ["En los bolos","Parque","Pista de Hielo","Casa de Facu"], answerIndex: 1 },
+      { text: "¿Qué te regaló tu novio para el 14 de febrero de 2025?", options: ["Ropa","Flores","Un libro","Una lámpara de luna"], answerIndex: 3 }
+    ];
+    let current = 0;
+    const screens = {
+      question: document.getElementById('question-box'),
+      wrong: document.getElementById('wrong-screen'),
+      final: document.getElementById('final-screen')
+    };
+    const title = document.getElementById('main-title');
+    const questionText = document.getElementById('question-text');
+    const optionsList = document.getElementById('options-list');
+    const restartBtns = document.querySelectorAll('.nav-btn');
+    const correctSound = document.getElementById('correct-sound');
+    const wrongSound = document.getElementById('wrong-sound');
+    const winSound = document.getElementById('win-sound');
+
+    function showScreen(name) {
+      Object.values(screens).forEach(s => s.style.display = 'none');
+      if (name === 'question') title.style.display = 'block';
+      else title.style.display = 'none';
+      screens[name].style.display = 'flex';
+    }
+
+    function loadQuestion(idx) {
+      showScreen('question');
+      const q = questions[idx];
+      questionText.textContent = q.text;
+      optionsList.innerHTML = '';
+      q.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = opt;
+        btn.addEventListener('click', () => handleAnswer(i === q.answerIndex));
+        const li = document.createElement('li');
+        li.appendChild(btn);
+        optionsList.appendChild(li);
+      });
+    }
+
+    function handleAnswer(correct) {
+      if (correct) {
+        correctSound.currentTime = 0;
+        correctSound.play();
+        current++;
+        if (current < questions.length) {
+          setTimeout(() => loadQuestion(current), 800);
+        } else {
+          winSound.play();
+          launchConfetti();
+          showScreen('final');
+        }
+      } else {
+        wrongSound.currentTime = 0;
+        wrongSound.play();
+        showScreen('wrong');
+      }
+    }
+
+    function launchConfetti() {
+      for (let i = 0; i < 100; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = Math.random() * 100 + '%';
+        c.style.setProperty('--dx', (Math.random() * 200 - 100) + 'px');
+        c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 75%)`;
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 3000);
+      }
+    }
+
+    function resetGame() {
+      current = 0;
+      document.querySelectorAll('.confetti').forEach(e => e.remove());
+      loadQuestion(0);
+    }
+
+    restartBtns.forEach(b => b.addEventListener('click', resetGame));
+
+    loadQuestion(0);
+  </script>
+</body>
+</html>
